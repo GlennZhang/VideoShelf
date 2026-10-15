@@ -1,0 +1,89 @@
+# VideoShelf Configuration
+
+# Model settings
+model:
+  name: "qwen3-vl:8b"
+  timeout: 30  # seconds
+  max_retries: 3
+  temperature: 0.7
+
+# Frame extraction settings
+frame_extraction:
+  default_strategy: "interval"  # Options: interval, fixed_count, scene_detection
+  interval_seconds: 10
+  fixed_count: 8
+  max_frames: 20
+  scene_threshold: 30  # For scene detection (0-100)
+
+# Video scanning settings
+video_scanning:
+  recursive: true
+  supported_formats:
+    - .mp4
+    - .avi
+    - .mov
+    - .mkv
+    - .webm
+  max_file_size_mb: 5000  # Skip files larger than this
+  min_duration_seconds: 5  # Skip videos shorter than this
+
+# Classification settings
+classification:
+  confidence_threshold: 0.6
+  max_frames_for_classification: 5
+  batch_size: 3  # Number of frames to analyze in one API call
+
+# Tag generation settings
+tag_generation:
+  max_tags_per_category: 5
+  min_confidence: 0.5
+  allow_unknown_tags: false
+
+# Output settings
+output:
+  default_format: "json"  # Options: json, csv, sqlite
+  output_dir: "results"
+  include_timestamps: true
+  include_frames_data: false
+
+# Progress tracking
+progress:
+  show_progress_bars: true
+  update_interval: 1  # seconds
+  estimate_time_remaining: true
+
+# Logging settings
+logging:
+  level: "INFO"  # Options: DEBUG, INFO, WARNING, ERROR
+  log_file: "video_parser.log"
+  max_log_size_mb: 10
+  backup_count: 5
+
+# Error handling
+error_handling:
+  max_retries_per_video: 2
+  skip_corrupted_videos: true
+  continue_on_error: true
+  save_error_log: true
+
+# Local video library (src/library)
+library:
+  data_dir: "data"          # 数据库/截图/分析缓存所在目录
+  host: "127.0.0.1"
+  port: 8900
+  scan_excludes: [".DS_Store", "._*"]
+  analysis:
+    max_frames: 10          # 每个视频采样的关键帧数
+    transcribe_chunk_s: 600 # 转写分段长度（秒）
+    transcribe_budget_s: 300 # 最多转写5分钟，采样开头、1/3处和中间
+    frame_interval_s: 10.0
+
+# oMLX inference service (env overrides: OMLX_BASE_URL / OMLX_API_KEY /
+# OMLX_ASR_MODEL / OMLX_VISION_MODEL)
+omlx:
+  base_url: "http://127.0.0.1:8989/v1"
+  api_key: "noapikey"
+  asr_model: "Qwen3-ASR-0.6B-4bit"       # 需在 oMLX 中加载后生效
+  vision_model: "Qwen3.5-9B-MLX-4bit"
+  timeout_s: 600
+  max_retries: 3

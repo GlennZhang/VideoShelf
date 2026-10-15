@@ -1,0 +1,27 @@
+# Core dependencies
+opencv-python>=4.8.0
+ollama>=0.1.0
+PyYAML>=6.0
+pandas>=2.0.0
+click>=8.1.0
+tqdm>=4.65.0
+
+# Local video library (src/library)
+fastapi>=0.110
+uvicorn>=0.29
+httpx>=0.27
+pydantic>=2.6
+
+# Export formats
+openpyxl>=3.1.0  # For Excel export support
+
+# Optional: SQLite support is built-in with Python
+
+# Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0
+
+# Development
+black>=23.7.0
+flake8>=6.1.0
+mypy>=1.5.0

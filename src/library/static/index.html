@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VideoShelf · 本地视频资料库</title>
+<link rel="icon" type="image/x-icon" href="/static/icons/favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/static/icons/favicon-16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/static/icons/apple-touch-icon.png">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<div id="app">
+  <aside id="sidebar">
+    <h1><img class="app-icon" src="/static/icons/app-icon-512.png" width="32" height="32" alt="">视频资料库</h1>
+    <button id="add-folder-btn" class="primary">＋ 添加文件夹</button>
+    <nav>
+      <section data-sec="browse">
+        <h2>浏览<button class="sec-toggle" aria-label="展开/折叠"></button></h2>
+        <ul id="nav-browse">
+          <li data-view="all" class="active"><span>全部视频</span><span id="browse-total" class="count">0</span></li>
+          <li data-view="pending"><span>待确认 / 异常</span><span id="browse-pending" class="count">0</span></li>
+          <li data-view="favorite"><span>收藏</span><span id="browse-favorites" class="count">0</span></li>
+        </ul>
+      </section>
+      <section data-sec="folders">
+        <h2>文件夹<button class="sec-toggle" aria-label="展开/折叠"></button></h2>
+        <ul id="nav-folders"></ul>
+      </section>
+      <section data-sec="categories">
+        <h2>分类<button class="sec-toggle" aria-label="展开/折叠"></button></h2>
+        <ul id="nav-categories"></ul>
+      </section>
+      <section data-sec="painters">
+        <h2>画家<button class="sec-toggle" aria-label="展开/折叠"></button></h2>
+        <ul id="nav-painters"></ul>
+      </section>
+      <section data-sec="collections">
+        <h2>合集<span class="h2-actions"><button id="new-collection-btn" class="link">＋</button><button class="sec-toggle" aria-label="展开/折叠"></button></span></h2>
+        <ul id="nav-collections"></ul>
+      </section>
+    </nav>
+    <div id="task-bar">
+      <button id="tasks-toggle">任务 <span id="task-count"></span></button>
+      <div id="tasks-panel" hidden></div>
+    </div>
+  </aside>
+
+  <main id="list-pane">
+    <div id="toolbar">
+      <input id="search" type="search" placeholder="搜索标题、画家、简介、标签、转写…">
+      <select id="filter-form"><option value="">全部形式</option></select>
+      <select id="filter-duration">
+        <option value="">全部时长</option>
+        <option value="short">&lt; 10 分钟</option>
+        <option value="medium">10–40 分钟</option>
+        <option value="long">&gt; 40 分钟</option>
+      </select>
+      <button id="batch-mode-btn">批量</button>
+      <div id="batch-bar" hidden>
+        <span id="batch-count">已选 0</span>
+        <button data-action="artist">指定画家</button>
+        <button data-action="category">改分类</button>
+        <button data-action="tag">加标签</button>
+        <button data-action="collection">加入合集</button>
+        <button id="batch-done">完成</button>
+      </div>
+    </div>
+    <div id="video-grid"></div>
+    <div id="empty-hint" hidden>没有匹配的视频</div>
+  </main>
+
+  <section id="detail-pane" hidden>
+    <button id="detail-close">×</button>
+    <div id="detail-body"></div>
+  </section>
+</div>
+
+<div id="player-modal" hidden>
+  <div id="player-box">
+    <button id="player-close" aria-label="关闭视频">×</button>
+    <video id="player" controls></video>
+    <div id="player-title"></div>
+  </div>
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

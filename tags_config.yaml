@@ -1,0 +1,189 @@
+# Tag Taxonomy Configuration
+# This file defines the hierarchical tag structure for video classification
+
+tag_taxonomy:
+  # Top-level video categories
+  categories:
+    - 绘画
+    - 教程
+    - vlog
+    - 娱乐
+    - 体育
+    - 其他
+
+  # Drawing-specific tags (绘画标签)
+  绘画:
+    风格:
+      - 素描
+      - 水彩
+      - 油画
+      - 数字艺术
+      - 炭笔
+      - 铅笔
+      - 墨水
+      - 粉彩
+      - 混合媒介
+      - 其他风格
+    主题:
+      - 人物
+      - 风景
+      - 静物
+      - 抽象
+      - 动漫
+      - 卡通
+      - 写实
+      - 奇幻
+      - 动物
+      - 建筑
+      - 其他主题
+    技能水平:
+      - 入门
+      - 中级
+      - 高级
+      - 专业
+    工具:
+      - 铅笔
+      - 画笔
+      - 数位板
+      - 炭笔
+      - 粉彩
+      - 马克笔
+      - 钢笔
+      - 其他工具
+    技法:
+      - 明暗
+      - 晕染
+      - 分层
+      - 排线
+      - 点彩
+      - 上釉
+      - 洗涤
+      - 其他技法
+
+  # Tutorial-specific tags (教程标签)
+  教程:
+    领域:
+      - 艺术
+      - 烹饪
+      - 科技
+      - 手工
+      - 健身
+      - 音乐
+      - 语言
+      - 其他领域
+    难度:
+      - 入门
+      - 中级
+      - 高级
+    形式:
+      - 逐步教学
+      - 技巧
+      - 完整课程
+      - 快速技巧
+    时长分类:
+      - 短视频_5分钟内
+      - 中等_5_15分钟
+      - 长视频_15_60分钟
+      - 超长_1小时以上
+
+  # Vlog-specific tags (vlog标签)
+  vlog:
+    类型:
+      - 日常生活
+      - 旅行
+      - 评论
+      - 观点
+      - 问答
+      - 故事
+      - 幕后
+      - 其他类型
+    氛围:
+      - 信息性
+      - 娱乐性
+      - 情感
+      - 励志
+      - 幽默
+      - 轻松
+    场景:
+      - 室内
+      - 户外
+      - 工作室
+      - 活动
+      - 旅行地
+
+  # Entertainment-specific tags (娱乐标签)
+  娱乐:
+    类型:
+      - 喜剧
+      - 游戏
+      - 音乐
+      - 短剧
+      - 挑战
+      - 反应
+      - 动画
+      - 其他类型
+    制作质量:
+      - 专业
+      - 半专业
+      - 业余
+    受众:
+      - 全年龄
+      - 青少年
+      - 成人
+      - 亲子
+
+  # Sports-specific tags (体育标签)
+  体育:
+    类型:
+      - 团队运动
+      - 个人运动
+      - 极限运动
+      - 水上运动
+      - 冬季运动
+      - 格斗运动
+      - 赛车
+      - 其他运动
+    水平:
+      - 专业
+      - 业余
+      - 娱乐
+    角色:
+      - 选手
+      - 教练
+      - 分析
+      - 观众解说
+
+  # Other (generic tags that apply to any category)
+  其他:
+    质量指标:
+      - 高质量制作
+      - 教育性
+      - 励志
+      - 争议性
+      - 热门
+    内容类型:
+      - 纪录片
+      - 访谈
+      - 演示
+      - 展示
+      - 表演
+      - 其他内容
+
+# Configuration for free-text tags
+# Categories marked as true allow custom tags beyond the predefined list
+allow_free_text_tags:
+  绘画:
+    主题: true
+    工具: true
+  教程:
+    领域: true
+  vlog:
+    类型: true
+    场景: true
+  娱乐:
+    类型: true
+  体育:
+    类型: true
+  其他:
+    质量指标: true
+    内容类型: true
