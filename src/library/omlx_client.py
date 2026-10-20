@@ -8,6 +8,7 @@ the ``/v1`` suffix; it is normalized here.
 import base64
 import json
 import logging
+import re
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
@@ -15,6 +16,19 @@ from typing import Any, Dict, List, Optional, Sequence
 import httpx
 
 logger = logging.getLogger(__name__)
+
+#: Ollama-served Qwen3-ASR wraps transcripts like
+#: ``language Chinese<asr_text>你好</asr_text>``; the closing tag is
+#: sometimes missing, so it is optional.
+_ASR_WRAPPER_RE = re.compile(
+    r"^\s*language\s+\S+\s*<asr_text>(.*?)(?:</asr_text>)?\s*$", re.DOTALL
+)
+
+
+def clean_transcript(text: str) -> str:
+    """Remove the ``language ...<asr_text>`` wrapper if present."""
+    match = _ASR_WRAPPER_RE.match(text)
+    return match.group(1).strip() if match else text.strip()
 
 
 class OmlxError(Exception):
@@ -100,6 +114,10 @@ class OmlxClient:
                 "messages": list(messages),
                 "temperature": temperature,
                 "max_tokens": max_tokens,
+                # Thinking-model controls: each backend honors its own param
+                # and ignores the other, so both are sent for compatibility.
+                # oMLX: chat_template_kwargs; Ollama/LiteLLM: top-level think.
+                "think": False,
                 "chat_template_kwargs": {"enable_thinking": False},
             },
         )
@@ -160,10 +178,10 @@ class OmlxClient:
         try:
             data = json.loads(body)
             if isinstance(data, dict):
-                return data.get("text") or ""
-            return str(data)
+                return clean_transcript(data.get("text") or "")
+            return clean_transcript(str(data))
         except json.JSONDecodeError:
-            return body
+            return clean_transcript(body)
 
 
 def extract_json(text: str) -> Dict[str, Any]:
