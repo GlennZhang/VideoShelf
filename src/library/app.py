@@ -5,15 +5,21 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.exceptions import RequestValidationError
+from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.staticfiles import StaticFiles
 
 from library.api import router
+from library.drama_api import router as drama_router
+from library.summary_api import router as summary_router
+from library.download_api import router as download_router
 from library.config import LibraryConfig
 from library.db import Library
 from library.omlx_client import OmlxClient
 from library.pipeline import AnalysisPipeline
 from library.worker import Worker
+from library.model_settings import ModelSettings
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +40,13 @@ class AppState:
             max_retries=cfg.omlx.max_retries,
         )
         self.pipeline = AnalysisPipeline(self.lib, cfg, self.client)
-        self.worker = Worker(self.lib, cfg, self.pipeline)
+        self.model_settings = ModelSettings(cfg)
+        self.worker = Worker(
+            self.lib,
+            cfg,
+            self.pipeline,
+            model_factory=lambda: self.model_settings.runtime(self.client),
+        )
 
     def start(self) -> None:
         self.worker.start()
@@ -61,6 +73,23 @@ def create_app(cfg: LibraryConfig) -> FastAPI:
 
     app = FastAPI(title="VideoShelf · 本地视频资料库", docs_url=None, redoc_url=None)
     app.include_router(router)
+    app.include_router(drama_router)
+    app.include_router(summary_router)
+    app.include_router(download_router)
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_error(request, exc):
+        if request.url.path.startswith("/api/model-settings"):
+            return JSONResponse(
+                status_code=422,
+                content={
+                    "detail": [
+                        {key: error[key] for key in ("loc", "msg", "type")}
+                        for error in exc.errors()
+                    ]
+                },
+            )
+        return await request_validation_exception_handler(request, exc)
 
     @app.on_event("startup")
     async def _startup() -> None:

@@ -21,10 +21,17 @@ POLL_INTERVAL_S = 1.0
 class Worker:
     """Sequential task-queue worker thread."""
 
-    def __init__(self, lib: Library, cfg: LibraryConfig, pipeline: AnalysisPipeline):
+    def __init__(
+        self,
+        lib: Library,
+        cfg: LibraryConfig,
+        pipeline: AnalysisPipeline,
+        model_factory=None,
+    ):
         self.lib = lib
         self.cfg = cfg
         self.pipeline = pipeline
+        self.model_factory = model_factory
         self._stop = threading.Event()
         self._thread: Optional[threading.Thread] = None
 
@@ -78,7 +85,61 @@ class Worker:
                 self.lib.update_task(task["id"], status="done", progress=1.0)
         elif task["type"] == "analyze":
             content_id = task["payload"]["content_id"]
-            self.pipeline.analyze_content(content_id, task_id=task["id"])
+            if self.model_factory is None:
+                self.pipeline.analyze_content(content_id, task_id=task["id"])
+            else:
+                with self.model_factory() as (cfg, client):
+                    AnalysisPipeline(self.lib, cfg, client).analyze_content(
+                        content_id, task_id=task["id"]
+                    )
             self.lib.update_task(task["id"], status="done")
+        elif task["type"] == "course":
+            from library.course_pipeline import CoursePipeline
+
+            course = CoursePipeline(
+                self.cfg, self.pipeline.client, model_factory=self.model_factory
+            )
+            course.run(
+                task["payload"]["course_id"],
+                lambda stage, fraction: self.lib.update_task(
+                    task["id"], stage=stage, progress=fraction
+                ),
+                retry_only=not task["payload"].get("regenerate", False),
+                regenerate=task["payload"].get("regenerate", False),
+            )
+            self.lib.update_task(task["id"], status="done", progress=1.0)
+        elif task["type"] == "drama":
+            from library.drama_pipeline import DramaPipeline
+
+            DramaPipeline(self.cfg, self.pipeline.client, self.model_factory).run(
+                task["payload"]["drama_id"],
+                lambda stage, fraction: self.lib.update_task(
+                    task["id"], stage=stage, progress=fraction
+                ),
+                regenerate=task["payload"].get("regenerate", False),
+            )
+            self.lib.update_task(task["id"], status="done", progress=1.0)
+        elif task["type"] == "summary":
+            from library.summary_pipeline import SummaryPipeline
+
+            SummaryPipeline(
+                self.cfg, self.pipeline.client, self.model_factory
+            ).run(
+                task["payload"]["summary_id"],
+                lambda stage, fraction: self.lib.update_task(
+                    task["id"], stage=stage, progress=fraction
+                ),
+            )
+            self.lib.update_task(task["id"], status="done", progress=1.0)
+        elif task["type"] == "download":
+            from library.download_pipeline import DownloadPipeline
+
+            DownloadPipeline(self.cfg).run(
+                task["payload"]["download_id"],
+                lambda stage, fraction: self.lib.update_task(
+                    task["id"], stage=stage, progress=fraction
+                ),
+            )
+            self.lib.update_task(task["id"], status="done", progress=1.0)
         else:
             raise ValueError(f"unknown task type: {task['type']}")

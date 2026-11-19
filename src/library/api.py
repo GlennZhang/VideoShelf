@@ -1,9 +1,10 @@
 """REST API for the library web app (all routes, one router)."""
 
 import json
+import shutil
 import subprocess
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Literal
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse, StreamingResponse
@@ -201,7 +202,7 @@ def list_videos(
 
         videos = [v for v in videos if match(v)]
         total = len(videos)
-        videos = videos[offset:offset + limit]
+        videos = videos[offset : offset + limit]
     else:
         filters = dict(
             category=category,
@@ -546,3 +547,283 @@ def stream_file(file_id: int, start: float = 0.0):
         media_type="video/mp4",
         headers={"Cache-Control": "no-store"},
     )
+
+
+# -- Courses: full transcription and illustrated Markdown ------------------
+
+
+class CourseIn(BaseModel):
+    path: str
+
+
+def _courses():
+    from library.app import get_state
+    from library.course_pipeline import CoursePipeline
+
+    state = get_state()
+    return CoursePipeline(state.cfg, state.client)
+
+
+def _course_or_404(course_id: str):
+    courses = _courses()
+    if len(course_id) != 32 or any(c not in "0123456789abcdef" for c in course_id):
+        raise HTTPException(404, "课程不存在")
+    if not (courses.course_dir(course_id) / "course.json").exists():
+        raise HTTPException(404, "课程不存在")
+    return courses, courses.load(course_id)
+
+
+@router.get("/courses")
+def list_courses():
+    return _courses().list_courses()
+
+
+@router.post("/courses")
+def import_course(body: CourseIn):
+    path = Path(body.path).expanduser()
+    if not path.is_dir():
+        raise HTTPException(400, "课程目录不存在")
+    try:
+        course = _courses().import_course(path)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    task_id = _lib().enqueue_task("course", {"course_id": course["id"]})
+    return {**course, "task_id": task_id}
+
+
+@router.get("/courses/{course_id}")
+def get_course(course_id: str):
+    _, course = _course_or_404(course_id)
+    course["tasks"] = [
+        t
+        for t in _lib().list_tasks()
+        if t["type"] == "course" and t["payload"].get("course_id") == course_id
+    ]
+    return course
+
+
+@router.post("/courses/{course_id}/retry")
+def retry_course(course_id: str, regenerate: bool = False):
+    _, course = _course_or_404(course_id)
+    active = [
+        t
+        for t in _lib().list_tasks(limit=100000)
+        if t["type"] == "course"
+        and t["payload"].get("course_id") == course_id
+        and t["status"] in ("queued", "running", "retry")
+    ]
+    if active:
+        raise HTTPException(409, "课程已有排队或运行中的任务")
+    return {
+        "task_id": _lib().enqueue_task(
+            "course", {"course_id": course_id, "regenerate": regenerate}
+        )
+    }
+
+
+@router.get("/courses/{course_id}/lessons/{lesson_id}")
+def course_lesson(course_id: str, lesson_id: str):
+    courses, course = _course_or_404(course_id)
+    lesson = next((l for l in course["lessons"] if l["id"] == lesson_id), None)
+    if lesson is None or lesson["status"] != "done":
+        raise HTTPException(404, "该课教程尚未生成")
+    from library.course_pipeline import read_json
+
+    folder = courses.course_dir(course_id)
+    notes = read_json(folder / lesson["cache"] / "lesson.json")
+    transcript = read_json(folder / lesson["cache"] / "transcript.json")
+    return {"lesson": lesson, "notes": notes, "transcript": transcript}
+
+
+@router.get("/courses/{course_id}/assets/{asset_path:path}")
+def course_asset(course_id: str, asset_path: str):
+    courses, _ = _course_or_404(course_id)
+    root = courses.course_dir(course_id).resolve()
+    path = (root / asset_path).resolve()
+    if (
+        not path.is_relative_to(root / "cache")
+        or path.suffix != ".jpg"
+        or not path.is_file()
+    ):
+        raise HTTPException(404, "截图不存在")
+    return FileResponse(path)
+
+
+@router.get("/courses/{course_id}/download")
+def download_course(course_id: str):
+    courses, course = _course_or_404(course_id)
+    active = [
+        t
+        for t in _lib().list_tasks(limit=100000)
+        if t["type"] == "course"
+        and t["payload"].get("course_id") == course_id
+        and t["status"] in ("queued", "running", "retry")
+    ]
+    if active or course["status"] == "running":
+        raise HTTPException(409, "课程处理中，请完成后导出")
+    return FileResponse(
+        courses.archive(course_id),
+        media_type="application/zip",
+        filename="course-tutorials.zip",
+    )
+
+
+@router.get("/courses/{course_id}/lessons/{lesson_id}/source")
+def course_source(course_id: str, lesson_id: str):
+    _, course = _course_or_404(course_id)
+    lesson = next((l for l in course["lessons"] if l["id"] == lesson_id), None)
+    if lesson is None or not Path(lesson["path"]).is_file():
+        raise HTTPException(404, "原视频不可用")
+    return FileResponse(lesson["path"])
+
+
+@router.delete("/courses/{course_id}")
+def delete_course(course_id: str):
+    lib = _lib()
+    # Keep the queue from claiming a pending lesson while its files are removed.
+    with lib._lock:
+        courses, course = _course_or_404(course_id)
+        tasks = lib._conn.execute(
+            "SELECT status FROM tasks WHERE type='course' AND json_extract(payload_json, '$.course_id')=?",
+            (course_id,),
+        ).fetchall()
+        if course["status"] == "running" or any(
+            t["status"] == "running" for t in tasks
+        ):
+            raise HTTPException(409, "课程正在处理中，完成后才能删除")
+        shutil.rmtree(courses.course_dir(course_id))
+        lib._conn.execute(
+            "DELETE FROM tasks WHERE type='course' AND json_extract(payload_json, '$.course_id')=?",
+            (course_id,),
+        )
+        lib._conn.commit()
+    return {"deleted": True}
+
+
+# -- Persistent course Markdown -------------------------------------------
+
+
+class DocumentSave(BaseModel):
+    markdown: str
+    revision: str
+
+
+class DraftAdopt(BaseModel):
+    revision: str
+    draft_revision: str
+
+
+def _document_store(course_id: str):
+    from library.course_documents import CourseDocuments, DOCUMENT_LOCK
+
+    courses, course = _course_or_404(course_id)
+    store = CourseDocuments(courses.course_dir(course_id))
+    with DOCUMENT_LOCK:
+        missing_completed = any(
+            lesson["status"] == "done"
+            and not (store.root / "lessons" / (lesson["id"] + ".md")).exists()
+            for lesson in course["lessons"]
+        )
+        if not store.state_file.exists() or missing_completed:
+            courses.export(course_id)
+    return store
+
+
+@router.get("/courses/{course_id}/documents")
+def list_course_documents(course_id: str):
+    return _document_store(course_id).list()
+
+
+@router.get("/courses/{course_id}/document")
+def read_course_document(course_id: str, path: str, draft: bool = False):
+    try:
+        return _document_store(course_id).read(path, generated=draft)
+    except FileNotFoundError as exc:
+        raise HTTPException(404, str(exc)) from exc
+
+
+@router.put("/courses/{course_id}/document")
+def save_course_document(course_id: str, path: str, body: DocumentSave):
+    from library.course_documents import DocumentConflict
+
+    try:
+        return _document_store(course_id).save(path, body.markdown, body.revision)
+    except FileNotFoundError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except DocumentConflict as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
+@router.post("/courses/{course_id}/document/adopt")
+def adopt_course_draft(course_id: str, path: str, body: DraftAdopt):
+    from library.course_documents import DocumentConflict
+
+    try:
+        return _document_store(course_id).adopt(
+            path, body.revision, body.draft_revision
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except DocumentConflict as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
+@router.get("/courses/{course_id}/document-assets/{asset_path:path}")
+def document_asset(course_id: str, asset_path: str):
+    store = _document_store(course_id)
+    root = (store.root / "assets").resolve()
+    path = (root / asset_path).resolve()
+    if (
+        not path.is_relative_to(root)
+        or not path.is_file()
+        or path.suffix.lower() not in (".jpg", ".png", ".webp")
+    ):
+        raise HTTPException(404, "图片不存在")
+    return FileResponse(path)
+
+
+@router.get("/courses/{course_id}/lessons/{lesson_id}/diagnostics")
+def course_diagnostics(course_id: str, lesson_id: str):
+    from library.course_documents import lesson_diagnostics
+
+    content = course_lesson(course_id, lesson_id)
+    return {**lesson_diagnostics(content["notes"]), "raw": content["notes"]}
+
+
+@router.post("/courses/{course_id}/regenerate")
+def regenerate_course(course_id: str):
+    return retry_course(course_id, regenerate=True)
+
+
+# -- Model profiles: text, vision and ASR can use different gateways. --------
+from library.model_settings import ModelProfile, ModelProfiles
+
+
+@router.get("/model-settings")
+def read_model_settings():
+    from library.app import get_state
+
+    return get_state().model_settings.public()
+
+
+@router.put("/model-settings")
+def save_model_settings(body: ModelProfiles):
+    from library.app import get_state
+
+    return get_state().model_settings.save(body)
+
+
+@router.post("/model-settings/models/{purpose}")
+def discover_profile_models(
+    purpose: Literal["text", "vision", "asr"], body: ModelProfile
+):
+    from library.app import get_state
+    from library.omlx_client import OmlxError
+
+    try:
+        return {"models": get_state().model_settings.models(purpose, body)}
+    except (OmlxError, ValueError) as exc:
+        # Do not echo authorization headers or provider response bodies containing secrets.
+        raise HTTPException(
+            400, "连接失败，请检查服务地址、密钥和服务是否启动。"
+        ) from exc

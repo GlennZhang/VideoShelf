@@ -10,6 +10,8 @@ tqdm>=4.65.0
 fastapi>=0.110
 uvicorn>=0.29
 httpx>=0.27
+yt-dlp>=2026.10.26
+qrcode>=8.0
 pydantic>=2.6
 
 # Export formats
@@ -25,3 +27,6 @@ pytest-cov>=4.1.0
 black>=23.7.0
 flake8>=6.1.0
 mypy>=1.5.0
+
+# Tolerate malformed JSON strings returned by language models
+json-repair==0.64.2

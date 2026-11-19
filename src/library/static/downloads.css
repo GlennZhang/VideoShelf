@@ -1,0 +1,12 @@
+/* B 站下载页：复用基础样式，仅补差异。 */
+.download-page .resolve-actions { display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; margin: .5rem 0 1rem; }
+.download-page .item-grid { display: grid; gap: .4rem; margin-bottom: 1.25rem; }
+.download-page .item-row { display: grid; grid-template-columns: auto 2.2rem 1fr auto auto; gap: .6rem; align-items: center; padding: .45rem .6rem; border: 1px solid rgba(127,127,127,.25); border-radius: 8px; }
+.download-page .item-row.static { grid-template-columns: 2.2rem 1fr auto auto; }
+.download-page .item-row small { color: var(--muted, #888); }
+.download-page .item-index { text-align: right; font-variant-numeric: tabular-nums; }
+.download-page .settings-panel { margin: 1rem 0; }
+.download-page .settings-panel .drama-settings-fields { display: grid; gap: .6rem; margin: .6rem 0; }
+.download-page .summarize-btn { white-space: nowrap; }
+.qr-box { display: flex; justify-content: center; padding: .75rem; }
+.qr-box img { width: 220px; height: 220px; }

@@ -51,6 +51,7 @@ class OmlxClient:
         api_key: str,
         timeout_s: float = 600.0,
         max_retries: int = 3,
+        provider: str = "omlx",
     ):
         self.base_url = normalize_base_url(base_url)
         self._client = httpx.Client(
@@ -59,6 +60,7 @@ class OmlxClient:
             timeout=timeout_s,
         )
         self.max_retries = max_retries
+        self.provider = provider
 
     def close(self) -> None:
         self._client.close()
@@ -117,8 +119,11 @@ class OmlxClient:
                 # Thinking-model controls: each backend honors its own param
                 # and ignores the other, so both are sent for compatibility.
                 # oMLX: chat_template_kwargs; Ollama/LiteLLM: top-level think.
-                "think": False,
-                "chat_template_kwargs": {"enable_thinking": False},
+                **(
+                    {"think": False, "chat_template_kwargs": {"enable_thinking": False}}
+                    if self.provider == "omlx"
+                    else {}
+                ),
             },
         )
         data = json.loads(resp.text)

@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>课程教程 · VideoShelf</title><link rel="icon" href="/static/icons/favicon.ico"><link rel="stylesheet" href="/static/app.css"><link rel="stylesheet" href="/static/courses.css"></head>
+<body class="courses-page">
+<header><a href="/">← 视频资料库</a> · <a href="/static/dramas.html">短剧拆解</a> · <a href="/static/model-settings.html" target="_blank" rel="noopener">模型设置</a><h1>课程教程</h1><p>将课程整理为带原始文字稿、提示词和示例截图的学习资料。</p></header>
+<main>
+<form id="course-import"><label for="course-path">本机课程文件夹</label><div class="import-row"><input id="course-path" name="path" required placeholder="/Users/你的用户名/Downloads/课程目录"><button class="primary" type="submit">导入并整理</button></div><p>支持 MP4、MKV、MOV；优先使用同名 SRT / VTT 字幕。</p></form>
+<p id="course-message" role="status" aria-live="polite"></p>
+<div class="course-workspace"><section aria-label="课程列表"><h2>我的课程</h2><div id="course-list">正在加载课程…</div></section><section id="course-detail" aria-label="课程详情"><h2>选择一套课程</h2><p>导入课程后可查看逐课进度、预览教程并导出 Markdown。</p></section></div>
+<section id="lesson-preview" hidden aria-label="单课教程"></section>
+</main><section id="document-workspace" hidden aria-label="Markdown 文档工作区">
+  <aside id="document-sidebar"><h2>课程文档</h2><nav id="document-nav" aria-label="课程文档目录"></nav></aside>
+  <div id="document-main">
+    <header id="document-tools">
+      <div class="document-heading"><button id="document-close">← 返回课程</button><div><h2 id="document-title"></h2><small id="document-path"></small></div></div>
+      <select id="document-picker" aria-label="切换文档"></select><div class="document-actions"><div class="document-modes" role="group" aria-label="文档模式"><button data-document-mode="reading" aria-pressed="true">阅读</button><button data-document-mode="live" aria-pressed="false">实时编辑</button><button data-document-mode="source" aria-pressed="false">源码</button></div><span id="document-status" role="status" aria-live="polite"></span><button id="document-save">保存 ⌘S</button><button id="document-download">导出课程 ZIP</button><button id="download-draft">下载当前文档</button></div>
+      <div id="document-format" hidden role="group" aria-label="格式工具"><button id="document-undo">撤销</button><button id="document-redo">重做</button><button data-insert="heading">标题</button><button data-insert="bold">加粗</button><button data-insert="list">列表</button><button data-insert="table">表格</button><button data-insert="code">代码块</button></div>
+      <div class="document-secondary"><a href="/static/model-settings.html" target="_blank" rel="noopener">模型设置</a><button id="source-toggle" hidden>视频与来源</button><button id="review-toggle" hidden></button><button id="compare-draft" hidden>比较 AI 新稿</button><button id="compare-server" hidden>比较服务器版本</button></div>
+    </header>
+    <div id="document-host" aria-label="Markdown 正文"></div>
+  </div>
+  <aside id="document-source"><button id="source-close">收起来源</button><video id="document-video" controls preload="none"></video><p id="source-precision"></p><details id="review-section"><summary>需要核对的事项</summary><ul id="review-items"></ul></details><h3>视频来源</h3><div id="source-list"></div><details><summary>完整识别记录</summary><pre id="recognition-details"></pre></details></aside>
+</section>
+<dialog id="document-comparison" aria-labelledby="comparison-title"><h2 id="comparison-title"></h2><p id="comparison-description"></p><div class="comparison-columns"><section><h3>当前正文</h3><div id="comparison-left"></div></section><section><h3>待比较版本</h3><div id="comparison-right"></div><details><summary>查看 Markdown 源码</summary><pre id="comparison-right-source"></pre></details></section></div><div class="comparison-actions"><button id="comparison-close">保留当前正文，关闭</button><button id="comparison-adopt"></button><button id="comparison-ours" hidden>用我的内容覆盖已查看版本</button></div></dialog>
+<script src="/static/course-editor.bundle.js"></script><script src="/static/courses.js"></script><script src="/static/course-workspace.js"></script></body></html>

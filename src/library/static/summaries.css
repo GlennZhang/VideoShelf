@@ -1,0 +1,7 @@
+/* 视频总结页：复用 app.css / courses.css 的基础样式，仅补差异。 */
+.summary-page .inline-check { display: inline-flex; gap: .35rem; align-items: center; font-weight: 400; }
+.summary-page .course-item { display: grid; gap: .35rem; width: 100%; text-align: left; }
+.summary-toolbar { display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; justify-content: flex-start; margin: .5rem 0 1rem; }
+.summary-toolbar a { text-decoration: none; }
+#summary-detail .md-rendered img { max-width: 100%; border-radius: 6px; }
+#summary-detail pre { overflow-x: auto; }

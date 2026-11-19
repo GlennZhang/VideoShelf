@@ -981,7 +981,7 @@ class Library:
         with self._lock:
             row = self._conn.execute(
                 "SELECT * FROM tasks WHERE status IN ('queued','retry')"
-                " ORDER BY CASE type WHEN 'scan' THEN 0 ELSE 1 END, id"
+                " ORDER BY CASE type WHEN 'download' THEN 0 WHEN 'scan' THEN 1 ELSE 2 END, id"
                 " LIMIT 1"
             ).fetchone()
             if row is None:

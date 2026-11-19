@@ -73,3 +73,21 @@ htmlcov/
 .DS_Store
 Thumbs.db
 .gstack/
+
+# Frontend build dependencies
+node_modules/
+
+# Local model credentials
+*.secrets.json
+
+# Development workflow artifacts (openspec / comet / superpowers)
+openspec/
+.claude/commands/openspec/
+docs/superpowers/
+
+# Local runtime output
+/out/
+
+# Third-party CLI tool clones, installed via pip (see README)
+/rea-video/
+/rea-toon/

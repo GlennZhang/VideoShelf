@@ -207,8 +207,12 @@ def test_stats(client, tiny_video):
 def test_browse_counts_update_and_match_filtered_lists(client):
     tc, st = client
     lib = st.lib
-    assert {k: tc.get("/api/stats").json()[k] for k in ("total", "pending", "favorites")} == {
-        "total": 0, "pending": 0, "favorites": 0,
+    assert {
+        k: tc.get("/api/stats").json()[k] for k in ("total", "pending", "favorites")
+    } == {
+        "total": 0,
+        "pending": 0,
+        "favorites": 0,
     }
     cid = lib.upsert_content("a" * 64, 1)
     assert tc.get("/api/stats").json()["pending"] == 1
@@ -226,10 +230,14 @@ def test_browse_counts_update_and_match_filtered_lists(client):
     tc.post(f"/api/videos/{cid}/people/{b}/confirm/reposting_account")
     assert tc.get("/api/stats").json()["pending"] == 0
     for value in (True, False):
-        assert tc.patch(f"/api/videos/{cid}", json={"favorite": value}).status_code == 200
+        assert (
+            tc.patch(f"/api/videos/{cid}", json={"favorite": value}).status_code == 200
+        )
         assert tc.get("/api/stats").json()["favorites"] == int(value)
         assert tc.get("/api/videos?favorite=true").json()["total"] == int(value)
-    tc.post("/api/batch", json={"content_ids": [cid], "action": "favorite", "value": True})
+    tc.post(
+        "/api/batch", json={"content_ids": [cid], "action": "favorite", "value": True}
+    )
     assert tc.get("/api/stats").json()["favorites"] == 1
     lib.set_analysis_status(cid, "analyzing")
     assert tc.get("/api/stats").json()["pending"] == 1
@@ -243,7 +251,9 @@ def test_pending_filter_and_totals_apply_before_pagination(client):
         st.lib.write_ai_result(cid, {"title": str(i)}, "v1")
     # Put the only pending video beyond the first page.
     st.lib.set_analysis_status(cid, "failed", "example error")
-    st.lib._conn.execute("UPDATE videos SET updated_at='2000-01-01' WHERE content_id=?", (cid,))
+    st.lib._conn.execute(
+        "UPDATE videos SET updated_at='2000-01-01' WHERE content_id=?", (cid,)
+    )
     st.lib._conn.commit()
     data = tc.get("/api/videos?limit=1").json()
     assert data["total"] == 65 and len(data["items"]) == 1
@@ -272,14 +282,41 @@ def test_unknown_artist_counts_filter_and_assignment(client):
     assert data["total"] == 2 and len(data["items"]) == 1
     data = tc.get("/api/videos?unknown_artist=true&offset=1&limit=1").json()
     assert data["total"] == 2 and len(data["items"]) == 1
-    data = tc.get("/api/videos", params={"unknown_artist": True, "q": "归属测试"}).json()
+    data = tc.get(
+        "/api/videos", params={"unknown_artist": True, "q": "归属测试"}
+    ).json()
     assert {v["content_id"] for v in data["items"]} == {empty, guests}
     # Assigning a painter removes only that video from the unknown group.
-    assert tc.post(f"/api/videos/{guests}/artist", json={"name": "指定作者"}).status_code == 200
+    assert (
+        tc.post(f"/api/videos/{guests}/artist", json={"name": "指定作者"}).status_code
+        == 200
+    )
     assert tc.get("/api/stats").json()["unknown_artists"] == 1
     data = tc.get("/api/videos?unknown_artist=true").json()
     assert [v["content_id"] for v in data["items"]] == [empty]
     # Batch assignment also updates the count; the empty entry remains available.
-    assert tc.post("/api/batch", json={"content_ids": [empty], "action": "artist", "value": "指定作者"}).status_code == 200
+    assert (
+        tc.post(
+            "/api/batch",
+            json={"content_ids": [empty], "action": "artist", "value": "指定作者"},
+        ).status_code
+        == 200
+    )
     assert tc.get("/api/stats").json()["unknown_artists"] == 0
     assert tc.get("/api/videos?unknown_artist=true").json() == {"total": 0, "items": []}
+
+
+def test_model_settings_api_never_returns_key(client):
+    tc, st = client
+    settings = tc.get("/api/model-settings").json()
+    for profile in settings.values():
+        profile.pop("has_api_key")
+        profile["api_key"] = "private-test-key"
+    response = tc.put("/api/model-settings", json=settings)
+    assert response.status_code == 200
+    assert "private-test-key" not in response.text
+    assert response.json()["text"]["has_api_key"]
+    settings["text"]["provider"] = "invalid"
+    response = tc.put("/api/model-settings", json=settings)
+    assert response.status_code == 422
+    assert "private-test-key" not in response.text

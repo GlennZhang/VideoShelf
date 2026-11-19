@@ -159,3 +159,26 @@ def rescan(ctx):
             click.echo(f"folder#{fid}: {r.summary()}")
     finally:
         lib.close()
+
+
+@library_cli.command("course")
+@click.argument("folder", type=click.Path(exists=True, file_okay=False, path_type=Path))
+@click.pass_context
+def course_command(ctx, folder):
+    """导入课程并加入后台任务队列；运行 library serve 后自动处理。"""
+    from library.course_pipeline import CoursePipeline
+    from library.db import Library
+    from library.omlx_client import OmlxClient
+
+    cfg = _cfg(ctx.obj["config_path"])
+    lib = Library(cfg.db_path)
+    client = OmlxClient(cfg.omlx.base_url, cfg.omlx.effective_api_key)
+    try:
+        course = CoursePipeline(cfg, client).import_course(folder)
+        task_id = lib.enqueue_task("course", {"course_id": course["id"]})
+        click.echo(
+            f"课程 {course['id']}：{len(course['lessons'])} 课，任务 #{task_id}；启动 library serve 后自动处理。"
+        )
+    finally:
+        client.close()
+        lib.close()
